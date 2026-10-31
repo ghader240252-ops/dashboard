@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NASA Space Survivor - Command Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#05080f;--glass:rgba(14,26,46,.58);--line:rgba(110,190,255,.2);--text:#e8f1fa;--mute:#8fa8c2;--cyan:#35d0ff;--amber:#ffb347;--leaf:#5be3a0;--warn:#ff7a5c}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--text);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;padding:18px;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:
+ radial-gradient(1.5px 1.5px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 30% 60%,#bcd,transparent),
+ radial-gradient(1.5px 1.5px at 55% 12%,#fff,transparent),radial-gradient(1px 1px at 72% 40%,#cde,transparent),
+ radial-gradient(1.5px 1.5px at 88% 75%,#fff,transparent),radial-gradient(1px 1px at 8% 85%,#bcd,transparent),
+ radial-gradient(1px 1px at 45% 90%,#fff,transparent),radial-gradient(ellipse at 20% 0%,#10206a55,transparent 55%)}
+body::after{content:"";position:fixed;z-index:-1;right:-18vw;bottom:-34vw;width:62vw;height:62vw;border-radius:50%;
+ background:radial-gradient(circle at 32% 28%,#4fb6ff 0%,#1a5fa8 22%,#0a2a55 48%,#050c1c 72%);
+ box-shadow:0 0 90px 10px #2a8cff55,inset -40px -30px 90px #000;opacity:.6}
+h1,h2,.num{font-family:"Orbitron",system-ui,sans-serif;margin:0;letter-spacing:.03em}
+h1{font-size:22px}h2{font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+small{color:var(--mute)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.brand{display:flex;gap:14px;align-items:center}
+.tag{font:700 12px "Orbitron";border:1px solid var(--cyan);color:var(--cyan);padding:6px 9px;border-radius:3px;box-shadow:0 0 12px #35d0ff44}
+.hud{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--leaf);box-shadow:0 0 10px var(--leaf);animation:p 2s infinite}
+@keyframes p{50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.pulse{animation:none}}
+.badge{border:1px solid var(--line);background:var(--glass);padding:3px 11px;border-radius:99px;font-size:13px;color:var(--mute)}
+.badge.live{color:var(--leaf);border-color:var(--leaf)}.badge.demo{color:var(--warn);border-color:var(--warn)}
+.card{position:relative;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;box-shadow:0 8px 32px #0006}
+.card::before,.card::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);opacity:.7;pointer-events:none}
+.card::before{top:-1px;left:-1px;border-right:0;border-bottom:0;border-top-left-radius:14px}
+.card::after{bottom:-1px;right:-1px;border-left:0;border-top:0;border-bottom-right-radius:14px}
+.tl{margin-bottom:14px;padding:14px 22px}
+.tl-track{display:flex;align-items:flex-start}
+.tl-step{flex:1;text-align:center;position:relative;font-size:13px;color:var(--mute)}
+.tl-step::before{content:"";position:absolute;top:8px;left:-50%;width:100%;height:2px;background:var(--line)}
+.tl-step:first-child::before{display:none}.tl-step.done::before,.tl-step.now::before{background:var(--leaf)}
+.tl-step i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--bg);margin:0 auto 6px;position:relative;z-index:1}
+.tl-step.done i{background:var(--leaf);border-color:var(--leaf);box-shadow:0 0 10px var(--leaf)}
+.tl-step.now i{border-color:var(--cyan);box-shadow:0 0 12px var(--cyan)}.tl-step.now{color:var(--text)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(12,1fr)}
+.profile{grid-column:span 4}.explorer{grid-column:span 8;grid-row:span 2}.missions{grid-column:span 4}
+.impact{grid-column:span 6}.ach{grid-column:span 6}
+@media(max-width:900px){.profile,.explorer,.missions,.impact,.ach{grid-column:1/-1;grid-row:auto}}
+.bar{height:8px;background:#0008;border-radius:4px;overflow:hidden}.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--amber));transition:width .5s;box-shadow:0 0 10px var(--cyan)}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:#0a162888;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font-size:22px;font-family:"Orbitron";color:var(--cyan);text-shadow:0 0 12px #35d0ff88}.stat span{color:var(--mute);font-size:12px}
+#map{height:300px;border-radius:10px;border:1px solid var(--line)}
+button,select,input{font:inherit;color:var(--text);background:#0a1628aa;border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+button{cursor:pointer;background:linear-gradient(135deg,var(--cyan),#2b86ff);color:#021020;border:0;font-weight:500;box-shadow:0 0 16px #35d0ff55}
+button:disabled{opacity:.4;box-shadow:none;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+button.ghost{background:#0a1628aa;color:var(--text);border:1px solid var(--line);box-shadow:none}button.ghost.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 10px #35d0ff44}
+.mission{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line)}.mission .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;margin-top:3px}
+.mission.done .dot{background:var(--leaf);border-color:var(--leaf);box-shadow:0 0 8px var(--leaf)}.mission small{color:var(--mute)}
+.ach-list{display:flex;flex-wrap:wrap;gap:8px}.a{padding:6px 12px;border:1px dashed var(--line);border-radius:99px;color:var(--mute)}.a.got{border:1px solid var(--amber);color:var(--amber);box-shadow:0 0 10px #ffb34755}
+.verdict{margin-top:10px;padding:10px 12px;border-left:3px solid var(--cyan);background:#0a162899;border-radius:0 8px 8px 0}
+canvas{max-height:170px}
+.leaflet-container{background:#050c1c}
+.hz{font:700 56px "Orbitron";line-height:1}.alert{padding:10px 14px;border-radius:10px;margin:10px 0;border:1px solid var(--line);background:#0a162899}
+.alert.Warning{border-color:var(--amber);color:var(--amber)}.alert.Emergency{border-color:var(--warn);color:var(--warn);box-shadow:0 0 18px #ff7a5c66}
+.tabs{display:flex;gap:6px;margin-bottom:8px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{font-size:12px;padding:2px 9px;border:1px solid var(--line);border-radius:99px;color:var(--mute)}
+.task{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}.task.done{color:var(--leaf)}
+.task button{padding:3px 10px;font-size:13px}.shield{display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.shield.sel{color:var(--cyan)}.ok{color:var(--leaf)}.bad{color:var(--warn)}ul.rec{margin:0;padding-left:18px}ul.rec li{margin:4px 0}
+.s2{grid-column:span 4}@media(max-width:900px){.s2{grid-column:1/-1}}
+</style>
+</head><body>
+<header class="top">
+  <div class="brand"><span class="tag">NASA DATA</span><div><h1>Space Survivor Command</h1><small>Mission beyond Earth · AI assessment dashboard</small></div></div>
+  <div class="hud"><span class="pulse" aria-hidden="true"></span><span id="src" class="badge">connecting…</span><span id="upd" class="badge"></span><span class="badge num" id="clock">T+00:00:00</span></div>
+</header>
+<section class="card tl"><div class="tl-track" id="tl"></div></section>
+<div class="grid">
+  <section class="card profile"><h2>Astronaut profile</h2>
+    <div class="row"><input id="name" value="Astronaut" aria-label="Name" style="width:60%"><span class="num" id="lvl"></span></div>
+    <div class="row" style="margin:12px 0 4px"><span>Experience</span><span id="xp"></span></div><div class="bar"><i id="xpbar"></i></div></section>
+
+  <section class="card explorer"><h2>Space weather · hazard scoring</h2>
+    <div class="row" style="align-items:flex-end"><div><div class="hz" id="hz">–</div><small>hazard score / 100</small></div><div style="text-align:right"><b class="num" id="hlvl"></b><br><small id="eta"></small></div></div>
+    <div id="alert" class="alert">Loading live data…</div>
+    <div class="stats"><div class="stat"><b id="wSpd">–</b><span>Solar wind (km/s)</span></div><div class="stat"><b id="wDen">–</b><span>Plasma density (p/cm³)</span></div>
+      <div class="stat"><b id="wBz">–</b><span>Magnetic Bz (nT)</span></div><div class="stat"><b id="wPro">–</b><span>Protons ≥10 MeV (pfu)</span></div></div>
+    <canvas id="chart" aria-label="Solar wind speed, last 24 hours"></canvas>
+    <p style="color:var(--mute);font-size:13px;margin:6px 0 0" id="flares"></p></section>
+
+  <section class="card missions"><h2>Missions</h2><div class="tabs" id="tabs"></div><div id="mission"></div></section>
+
+  <section class="card s2"><h2>Station environment</h2><div class="stats" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="stat"><b id="eT">–</b><span>Temp (°C)</span></div><div class="stat"><b id="eC">–</b><span>CO₂ (ppm)</span></div><div class="stat"><b id="eR">–</b><span>Radiation (µSv/h)</span></div></div>
+    <div id="status" class="alert">–</div></section>
+
+  <section class="card s2"><h2>Radiation shielding</h2><div id="shields"></div><small>Illustrative attenuation factors, for gameplay.</small></section>
+
+  <section class="card s2"><h2>AI advisor</h2><ul class="rec" id="rec"></ul><small>Rules-based now; replace <code>advise()</code> with an LLM call later.</small></section>
+
+  <section class="card" style="grid-column:1/-1"><h2>Assessment and final report</h2>
+    <div class="row"><span id="rsum" style="color:var(--mute)"></span><button id="rep" disabled>Show final report</button></div>
+    <pre id="report" class="verdict" hidden style="white-space:pre-wrap;font:inherit"></pre></section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const API = location.protocol==="file:"?"http://localhost:8000":"";
+const $=id=>document.getElementById(id);
+const FALLBACK=[{id:1,name:"Moonfall",story:"Solar storm hits the lunar base",tasks:[["m1_escape","Escape the damaged area"],["m1_battery","Collect batteries and repair power"],["m1_radiation","Avoid dangerous radiation"],["m1_crew","Rescue the crew, restore life support"],["m1_nav","Recover the lost navigation"]],data:["Lunar terrain and elevation (LRO)","Surface temperature","Possible H2O ice regions"]},
+ {id:2,name:"Mars Survival",story:"A dust storm threatens the base",tasks:[["m2_resources","Find food, H2O and resources"],["m2_oxygen","Repair the oxygen systems"],["m2_storm","Protect the base from the storm"],["m2_energy","Manage limited energy and resources"]],data:["Mars rover images","Temperature and pressure","Subsurface ice","Dust and atmosphere"]},
+ {id:3,name:"Lost in Space",story:"Find a safe destination",tasks:[["m3_navigate","Navigate the vehicle"],["m3_parts","Collect spare parts"],["m3_data","Determine the correct data using mission data"]],data:["Solar flares and CMEs","Solar wind and magnetic field","Energetic proton flux","Station environment"]}];
+const SHIELDS=[["None",1],["Aluminum 5 cm",.75],["Polyethylene 5 cm",.5],["Water wall 10 cm",.45],["Regolith 50 cm",.3]];
+let LV=FALLBACK,W=null,done=new Set(),tab=1,shield=1,chart,online=false;
+
+async function j(u,o){const r=await fetch(API+u,o);if(!r.ok)throw 0;return r.json()}
+async function loadWeather(){
+  try{W=await j("/api/space-weather");online=true;
+    const l=W.live,n=Object.values(l).filter(Boolean).length;
+    $("src").textContent=n===3?"Live · NASA DONKI + NOAA SWPC":`Partly live (${n}/3 feeds)`;$("src").className="badge "+(n===3?"live":"demo");$("upd").textContent="Updated "+W.updated;
+  }catch(e){online=false;W={speed:430,density:5,bz:-2,proton:.4,flares:[],series:[],hazard:{score:12,level:"Calm",parts:{},cme_eta_hours:null}};
+    $("src").textContent="Demo data · start the backend";$("src").className="badge demo"}
+  renderWeather();renderAll()}
+async function loadState(){try{const s=await j("/api/state");done=new Set(s.done)}catch(e){}renderAll()}
+async function loadLevels(){try{LV=await j("/api/levels")}catch(e){}}
+
+function renderWeather(){const h=W.hazard;
+  $("hz").textContent=h.score;$("hz").style.color=h.score<25?"var(--leaf)":h.score<50?"var(--cyan)":h.score<75?"var(--amber)":"var(--warn)";
+  $("hlvl").textContent=h.level;$("eta").textContent=h.cme_eta_hours?`Latest CME could arrive in ~${h.cme_eta_hours} h`:"No incoming CME estimate";
+  $("alert").className="alert "+h.level;
+  $("alert").textContent=h.level==="Emergency"?"EMERGENCY: shelter the crew now. Move everyone behind the best shielding.":h.level==="Warning"?"Warning: radiation rising. Prepare shelter and pause outdoor work.":h.level==="Elevated"?"Elevated activity. Keep monitoring.":"Space weather is calm. Safe to operate.";
+  $("wSpd").textContent=Math.round(W.speed);$("wDen").textContent=W.density.toFixed(1);$("wBz").textContent=W.bz.toFixed(1);$("wPro").textContent=W.proton.toFixed(2);
+  $("flares").textContent=W.flares.length?"Recent flares (NASA DONKI): "+W.flares.map(f=>f.class).join(", "):"No flares reported in the last 7 days.";
+  const cfg={type:"line",data:{labels:W.series.map(x=>x[0]),datasets:[{label:"Solar wind speed (km/s)",data:W.series.map(x=>x[1]),borderColor:"#35d0ff",pointRadius:0,tension:.3}]},
+    options:{plugins:{legend:{labels:{color:"#8fa8c2"}}},scales:{x:{ticks:{color:"#8fa8c2",maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:"#8fa8c2"},grid:{color:"#6ebeff22"}}}}};
+  if(chart)chart.destroy();chart=new Chart($("chart"),cfg)}
+
+const total=()=>LV.reduce((a,l)=>a+l.tasks.length,0);
+function renderAll(){
+  const xp=done.size*25,cur=LV.find(l=>l.tasks.some(t=>!done.has(t[0])))||LV[2];
+  $("lvl").textContent="Level "+cur.id;$("xp").textContent=`${xp} XP`;$("xpbar").style.width=Math.min(100,done.size/total()*100)+"%";
+  $("tl").innerHTML=LV.map(l=>{const all=l.tasks.every(t=>done.has(t[0]));return `<div class="tl-step ${all?"done":l===cur?"now":""}"><i></i>${l.name}</div>`}).join("");
+  $("tabs").innerHTML=LV.map(l=>`<button class="ghost ${l.id===tab?"on":""}" data-t="${l.id}">${l.id}. ${l.name}</button>`).join("");
+  const l=LV.find(x=>x.id===tab);
+  $("mission").innerHTML=`<small>${l.story}</small>`+l.tasks.map(t=>`<div class="task ${done.has(t[0])?"done":""}"><span>${t[1]}</span>${done.has(t[0])?"✓":`<button data-k="${t[0]}">Done</button>`}</div>`).join("")+
+    `<div class="chips">${l.data.map(d=>`<span class="chip">${d}</span>`).join("")}</div>`;
+  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tab=+b.dataset.t;renderAll()});
+  document.querySelectorAll("[data-k]").forEach(b=>b.onclick=async()=>{done.add(b.dataset.k);try{await j("/api/task/"+b.dataset.k,{method:"POST"})}catch(e){}renderAll()});
+  if(W){station();shields();advise()}
+  const all=done.size===total();$("rep").disabled=!all;$("rsum").textContent=`${done.size} of ${total()} tasks complete · ${xp} XP`}
+
+function station(){const h=W.hazard.score,dose=(12+h*.8)*shield,co2=900+done.size*40,temp=21+(h>50?3:0);
+  $("eT").textContent=temp;$("eC").textContent=co2;$("eR").textContent=dose.toFixed(1);
+  const st=dose>45||co2>2000?"Critical":dose>25||co2>1500?"Caution":"Nominal";
+  $("status").className="alert "+(st==="Critical"?"Emergency":st==="Caution"?"Warning":"");$("status").textContent="Station status: "+st}
+function shields(){const h=W.hazard.score,base=12+h*.8;
+  $("shields").innerHTML=SHIELDS.map(s=>`<div class="shield ${s[1]===shield?"sel":""}"><label><input type="radio" name="sh" value="${s[1]}" ${s[1]===shield?"checked":""}> ${s[0]}</label><div class="bar"><i style="width:${s[1]*100}%"></i></div><span>${(base*s[1]).toFixed(0)}</span></div>`).join("");
+  document.querySelectorAll('[name=sh]').forEach(r=>r.onchange=()=>{shield=+r.value;renderAll()})}
+function advise(){const h=W.hazard,r=[];
+  if(h.level==="Emergency"||h.level==="Warning")r.push(`Hazard is ${h.level} (${h.score}/100). Move the crew behind the strongest shielding available.`);
+  else r.push(`Hazard is ${h.level}. Good window for outdoor tasks like repairs and collecting parts.`);
+  if(W.bz<-8)r.push("Strongly negative Bz: a geomagnetic storm is likely. Expect navigation and comms noise.");
+  if(h.cme_eta_hours)r.push(`A CME may arrive in ~${h.cme_eta_hours} h. Finish critical tasks before then.`);
+  const best=SHIELDS.slice(1).sort((a,b)=>a[1]-b[1])[0];if(shield>.5)r.push(`Switch to ${best[0]} to cut your dose by ${Math.round((1-best[1])*100)}%.`);
+  const next=LV.flatMap(l=>l.tasks).find(t=>!done.has(t[0]));if(next)r.push("Next objective: "+next[1]+".");
+  $("rec").innerHTML=r.map(x=>`<li>${x}</li>`).join("")}
+$("rep").onclick=()=>{const p=$("report");p.hidden=false;p.textContent=
+`${$("name").value}: all 3 missions complete · ${done.size*25} XP\n\nYou survived Moonfall, Mars and deep space by reading real space-weather data and choosing shelter wisely.\n\nEnding: Earth was waiting. Your age barely changed, your wife is gone, and your daughter is now older than you.`};
+const t0=Date.now();setInterval(()=>{const s=Math.floor((Date.now()-t0)/1e3),f=n=>String(n).padStart(2,"0");$("clock").textContent=`T+${f(Math.floor(s/3600))}:${f(Math.floor(s/60)%60)}:${f(s%60)}`},1000);
+(async()=>{await loadLevels();await loadWeather();await loadState();setInterval(loadState,5000);setInterval(loadWeather,60000)})();
+</script></body></html>
